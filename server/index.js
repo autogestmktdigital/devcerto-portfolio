@@ -17,7 +17,7 @@ const cookieName = 'portfolio_session'
 const sessionLifetimeMs = 8 * 60 * 60 * 1000
 const credentialKeyText = process.env.CREDENTIALS_ENCRYPTION_KEY
 
-if (!adminPassword || adminPassword.length < 16) throw new Error('ADMIN_PASSWORD deve ter ao menos 16 caracteres')
+if (!adminPassword || adminPassword.length < 8) throw new Error('ADMIN_PASSWORD deve ter ao menos 8 caracteres')
 if (isProduction && (!credentialKeyText || Buffer.from(credentialKeyText, 'base64').length !== 32)) {
   throw new Error('CREDENTIALS_ENCRYPTION_KEY deve ser uma chave base64 de 32 bytes')
 }
