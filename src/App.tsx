@@ -242,7 +242,7 @@ export default function App() {
         </aside>
 
         {page === 'Dashboard' && <DashboardPage systems={systems} infras={infras} clients={clients} credentials={credentials} onNavigate={(target) => setPage(target)} />}
-        {page === 'Sistemas' && <SistemasPage systems={systems} infras={infras} query={query} modalOpen={modalPage === 'Sistemas'} onCloseModal={closeModal} onAdd={addSystem} onUpdate={updateSystem} onRemove={removeSystem} />}
+        {page === 'Sistemas' && <SistemasPage systems={systems} infras={infras} clients={clients} query={query} modalOpen={modalPage === 'Sistemas'} onCloseModal={closeModal} onAdd={addSystem} onUpdate={updateSystem} onRemove={removeSystem} />}
         {page === 'Infraestrutura' && <InfraPage systems={systems} infras={infras} query={query} modalOpen={modalPage === 'Infraestrutura'} onCloseModal={closeModal} onAdd={addInfra} onUpdate={updateInfra} onRemove={removeInfra} />}
         {page === 'Clientes' && <ClientesPage clients={clients} systems={systems} query={query} modalOpen={modalPage === 'Clientes'} onCloseModal={closeModal} onAdd={addClient} onUpdate={updateClient} onRemove={removeClient} />}
         {page === 'Acessos' && <CredenciaisPage credentials={credentials} query={query} modalOpen={modalPage === 'Acessos'} onCloseModal={closeModal} onAdd={addCredential} onUpdate={updateCredential} onRemove={removeCredential} />}

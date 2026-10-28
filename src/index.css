@@ -308,7 +308,7 @@ button:disabled { cursor: default; }
 
 .table-head {
   display: grid;
-  grid-template-columns: 40px 1.1fr 1.6fr 0.9fr 0.9fr 36px 36px;
+  grid-template-columns: 40px 1.1fr 1.6fr 0.9fr 1.2fr 36px 36px;
   gap: 12px;
   align-items: center;
   min-height: 46px;
@@ -329,7 +329,7 @@ button:disabled { cursor: default; }
 
 .system-row {
   display: grid;
-  grid-template-columns: 40px 1.1fr 1.6fr 0.9fr 0.9fr 36px 36px;
+  grid-template-columns: 40px 1.1fr 1.6fr 0.9fr 1.2fr 36px 36px;
   align-items: center;
   gap: 12px;
   min-height: 72px;
@@ -339,6 +339,7 @@ button:disabled { cursor: default; }
 }
 .system-row:last-child { border-bottom: 0; }
 .system-row:hover { background: rgba(0, 217, 245, 0.035); }
+.system-row.clickable { cursor: pointer; }
 .system-index { font: 12px var(--font-mono); color: var(--muted); }
 .system-row strong { font: 600 16px var(--font-body); }
 .system-row p { margin: 0; color: var(--muted); font: 14px/1.4 var(--font-body); }
@@ -420,6 +421,27 @@ button:disabled { cursor: default; }
 .infra-subrow:last-child { border-bottom: 0; }
 .infra-subrow strong { font: 600 14px var(--font-body); }
 .infra-subrow > span:nth-child(2), .infra-subrow > span:nth-child(4) { color: var(--muted); }
+
+/* Infra somente leitura (detalhe dentro de Sistemas) */
+.infra-ro-head, .infra-ro-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.5fr 0.7fr 1fr 0.9fr;
+  align-items: center;
+  gap: 12px;
+}
+.infra-ro-head {
+  min-height: 40px;
+  padding: 0 20px 0 36px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font: 600 10px var(--font-body);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.infra-ro-row { min-height: 52px; padding: 8px 20px 8px 36px; border-bottom: 1px solid rgba(139, 160, 190, 0.08); font: 14px var(--font-body); }
+.infra-ro-row:last-child { border-bottom: 0; }
+.infra-ro-row strong { font: 600 14px var(--font-body); }
+.infra-ro-row > span:nth-child(2), .infra-ro-row > span:nth-child(4) { color: var(--muted); }
 
 /* Clientes */
 .client-head { grid-template-columns: 40px 1fr 2fr 0.5fr 36px 36px; }
@@ -649,12 +671,12 @@ button:disabled { cursor: default; }
   .system-row { grid-template-columns: 28px 1fr 36px 36px; grid-auto-rows: auto; gap: 8px; min-height: 0; padding: 12px 14px; }
   .system-row strong { grid-column: 2; font-size: 15px; }
   .system-row p { grid-column: 1 / 5; grid-row: 2; font-size: 13px; }
-  .system-row .status { grid-column: 2; grid-row: 3; justify-self: start; }
-  .system-row .infra-value { grid-column: 2; grid-row: 4; font-size: 12px; }
+  .system-row .chips { grid-column: 1 / 5; grid-row: 3; }
+  .system-row .status { grid-column: 2; grid-row: 4; justify-self: start; }
   .system-row .row-edit { grid-column: 3; grid-row: 1; }
   .system-row .row-delete { grid-column: 4; grid-row: 1; }
 
-  .infra-master { grid-template-columns: 28px 1fr 24px auto 76px; gap: 8px; min-height: 0; padding: 12px 14px; }
+  .infra-master { grid-template-columns: 28px 1fr 24px auto; gap: 8px; min-height: 0; padding: 12px 14px; }
   .infra-master strong { font-size: 15px; }
   .infra-master .infra-value { font-size: 12px; }
   .infra-subhead { display: none; }
@@ -664,6 +686,12 @@ button:disabled { cursor: default; }
   .infra-subrow > span:nth-child(5) { grid-row: 2; grid-column: 1; justify-self: end; }
   .infra-subrow > .row-edit { grid-row: 1; grid-column: 2; justify-self: end; }
   .infra-subrow > .row-delete { grid-row: 1; grid-column: 3; justify-self: end; }
+
+  .infra-ro-head { display: none; }
+  .infra-ro-row { grid-template-columns: 1fr auto; gap: 6px; padding: 10px 14px 10px 24px; }
+  .infra-ro-row > span:nth-child(2), .infra-ro-row > span:nth-child(4) { display: none; }
+  .infra-ro-row > span:nth-child(3) { grid-row: 2; }
+  .infra-ro-row > span:nth-child(5) { grid-row: 2; grid-column: 1; justify-self: end; }
 
   .client-row { grid-template-columns: 28px 1fr 36px 36px; gap: 8px; min-height: 0; padding: 12px 14px; }
   .client-row strong { grid-column: 2; font-size: 15px; }
