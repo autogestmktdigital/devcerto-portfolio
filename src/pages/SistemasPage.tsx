@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { ClientItem, InfraItem, SystemFormPayload, SystemItem, SystemStatus } from '@/types'
-import { formatCurrency, statusClass } from '@/utils'
+import { dueLabel, statusClass, valueLabel } from '@/utils'
 
 interface Props {
   systems: SystemItem[]
@@ -152,15 +152,15 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
               {expanded && (
                 <div className="infra-detail">
                   <div className="infra-ro-head">
-                    <span>Plataforma</span><span>Utilização</span><span>Vencimento</span><span>Pagador</span><span className="cell-right">Valor/mês</span>
+                    <span>Plataforma</span><span>Utilização</span><span>Fonte Pagadora</span><span>Vencimento</span><span className="cell-right">Valor</span>
                   </div>
                   {systemInfras.map((infra) => (
                     <div className="infra-ro-row" key={infra.id}>
                       <strong>{infra.platform}</strong>
                       <span>{infra.usage}</span>
-                      <span className="mono">dia {String(infra.dueDay).padStart(2, '0')}</span>
                       <span>{infra.payer}</span>
-                      <span className="mono cell-right">{formatCurrency(infra.value)}</span>
+                      <span className="mono">{dueLabel(infra)}</span>
+                      <span className={`mono cell-right ${infra.billingType === 'Grátis' ? 'value-free' : ''}`}>{valueLabel(infra)}</span>
                     </div>
                   ))}
                   {systemInfras.length === 0 && <div className="empty small">Nenhuma infraestrutura cadastrada para este sistema.</div>}

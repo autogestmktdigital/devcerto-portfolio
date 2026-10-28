@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ClientItem, CredentialItem, InfraItem, SystemFormPayload, SystemItem } from '@/types'
+import type { ClientItem, CredentialItem, InfraFormPayload, InfraItem, SystemFormPayload, SystemItem } from '@/types'
 import { api } from '@/api'
 import type { AppData } from '@/api'
 import DashboardPage from '@/pages/DashboardPage'
@@ -145,8 +145,11 @@ export default function App() {
 
   async function applySystemRelations(systemId: number, infraIds: number[], clientIds: number[]) {
     for (const infra of infras) {
-      if (infraIds.includes(infra.id) && infra.systemId !== systemId) {
+      const selected = infraIds.includes(infra.id)
+      if (selected && infra.systemId !== systemId) {
         await updateInfra({ ...infra, systemId })
+      } else if (!selected && infra.systemId === systemId) {
+        await updateInfra({ ...infra, systemId: null })
       }
     }
     for (const client of clients) {
@@ -167,8 +170,8 @@ export default function App() {
     return true
   }
 
-  async function addInfra(infra: Omit<InfraItem, 'id'>): Promise<boolean> {
-    const result = await perform(() => api.create<InfraItem>('infras', infra))
+  async function addInfra(payload: InfraFormPayload): Promise<boolean> {
+    const result = await perform(() => api.create<InfraItem>('infras', { ...payload, systemId: null }))
     if (!result) return false
     setInfras((current) => [...current, result])
     return true
@@ -265,7 +268,7 @@ export default function App() {
 
         {page === 'Dashboard' && <DashboardPage systems={systems} infras={infras} clients={clients} credentials={credentials} onNavigate={(target) => setPage(target)} />}
         {page === 'Sistemas' && <SistemasPage systems={systems} infras={infras} clients={clients} query={query} modalOpen={modalPage === 'Sistemas'} onCloseModal={closeModal} onAdd={addSystem} onUpdate={updateSystem} onRemove={removeSystem} />}
-        {page === 'Infraestrutura' && <InfraPage systems={systems} infras={infras} query={query} modalOpen={modalPage === 'Infraestrutura'} onCloseModal={closeModal} onAdd={addInfra} onUpdate={updateInfra} onRemove={removeInfra} />}
+        {page === 'Infraestrutura' && <InfraPage infras={infras} query={query} modalOpen={modalPage === 'Infraestrutura'} onCloseModal={closeModal} onAdd={addInfra} onUpdate={updateInfra} onRemove={removeInfra} />}
         {page === 'Clientes' && <ClientesPage clients={clients} systems={systems} query={query} modalOpen={modalPage === 'Clientes'} onCloseModal={closeModal} onAdd={addClient} onUpdate={updateClient} onRemove={removeClient} />}
         {page === 'Acessos' && <CredenciaisPage credentials={credentials} query={query} modalOpen={modalPage === 'Acessos'} onCloseModal={closeModal} onAdd={addCredential} onUpdate={updateCredential} onRemove={removeCredential} />}
       </div>

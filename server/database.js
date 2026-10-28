@@ -1,6 +1,6 @@
 import pg from 'pg'
 import { initialClients, initialInfras, initialSystems } from './demo-data.js'
-import { schemaSql } from './schema.js'
+import { constraintSql, migrationSql, schemaSql } from './schema.js'
 
 const { Pool } = pg
 
@@ -11,7 +11,7 @@ async function seedDevelopmentData(pool) {
     await pool.query('INSERT INTO systems (name, description, status) VALUES ($1, $2, $3)', [system.name, system.description, system.status])
   }
   for (const infra of initialInfras) {
-    await pool.query('INSERT INTO infrastructure (system_id, platform, usage, due_day, payer, value) VALUES ($1, $2, $3, $4, $5, $6)', [infra.systemId, infra.platform, infra.usage, infra.dueDay, infra.payer, infra.value])
+    await pool.query('INSERT INTO infrastructure (system_id, platform, usage, due_day, payer, value, billing_type, paid_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [infra.systemId, infra.platform, infra.usage, infra.dueDay ?? null, infra.payer, infra.value, infra.billingType ?? 'Mensal', infra.paidDate ?? null])
   }
   for (const client of initialClients) {
     const result = await pool.query('INSERT INTO clients (name, since) VALUES ($1, $2) RETURNING id', [client.name, client.since])
@@ -31,6 +31,8 @@ export async function createDatabase() {
       connectionTimeoutMillis: 10000,
     })
     await pool.query(schemaSql)
+    await pool.query(migrationSql)
+    await pool.query(constraintSql)
     return pool
   }
   if (process.env.NODE_ENV === 'production') throw new Error('DATABASE_URL não configurada')
@@ -39,6 +41,7 @@ export async function createDatabase() {
   const { Pool: MemoryPool } = memory.adapters.createPg()
   const pool = new MemoryPool()
   await pool.query(schemaSql)
+  await pool.query(migrationSql)
   await seedDevelopmentData(pool)
   return pool
 }

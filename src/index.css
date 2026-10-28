@@ -426,7 +426,7 @@ button:disabled { cursor: default; }
 .infra-detail .system-row:last-child { border-bottom: 0; }
 .infra-subhead, .infra-subrow {
   display: grid;
-  grid-template-columns: 1fr 1.4fr 0.7fr 1fr 0.8fr 36px 36px;
+  grid-template-columns: 1fr 1.4fr 1fr 0.7fr 0.8fr 36px 36px;
   align-items: center;
   gap: 12px;
 }
@@ -447,10 +447,45 @@ button:disabled { cursor: default; }
 /* Infra somente leitura (detalhe dentro de Sistemas) */
 .infra-ro-head, .infra-ro-row {
   display: grid;
-  grid-template-columns: 1.1fr 1.5fr 0.7fr 1fr 0.9fr;
+  grid-template-columns: 1.1fr 1.5fr 1fr 0.7fr 0.9fr;
   align-items: center;
   gap: 12px;
 }
+
+/* Catálogo de infraestrutura (menu Infraestrutura) */
+.infra-cat-head, .infra-cat-row {
+  display: grid;
+  grid-template-columns: 40px 1.1fr 1.5fr 1.1fr 0.7fr 0.8fr 36px 36px;
+  align-items: center;
+  gap: 12px;
+}
+.infra-cat-head {
+  min-height: 46px;
+  padding: 0 20px;
+  color: var(--muted);
+  font: 600 11px var(--font-body);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.infra-cat-row {
+  min-height: 64px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  transition: background 0.2s;
+}
+.infra-cat-row:last-child { border-bottom: 0; }
+.infra-cat-row:hover { background: rgba(0, 217, 245, 0.035); }
+.infra-cat-row strong { font: 600 16px var(--font-body); }
+.infra-cat-row > span:nth-child(3), .infra-cat-row > span:nth-child(4) { color: var(--muted); font: 14px var(--font-body); }
+.infra-total-note {
+  margin: 14px 4px 0;
+  color: var(--muted);
+  font: 14px var(--font-body);
+}
+.infra-total-note strong { color: var(--cyan); font-weight: 600; }
+.infra-total-hint { margin-left: 6px; font-size: 12px; }
+.value-free { color: var(--green) !important; }
+.form-hint { margin: -10px 0 14px; color: var(--muted); font: 12px var(--font-body); }
 .infra-ro-head {
   min-height: 40px;
   padding: 0 20px 0 36px;
@@ -741,4 +776,14 @@ button:disabled { cursor: default; }
   .cred-row .cred-secret { grid-column: 1 / 5; grid-row: 3; }
   .cred-row .row-edit { grid-column: 3; grid-row: 1; }
   .cred-row .row-delete { grid-column: 4; grid-row: 1; }
+
+  .infra-cat-head { display: none; }
+  .infra-cat-row { grid-template-columns: 1fr 36px 36px; gap: 8px; min-height: 0; padding: 12px 14px; }
+  .infra-cat-row strong { font-size: 15px; }
+  .infra-cat-row > span:nth-child(3) { grid-column: 1; grid-row: 2; }
+  .infra-cat-row > span:nth-child(4) { grid-column: 1; grid-row: 3; }
+  .infra-cat-row > span:nth-child(5) { grid-column: 1; grid-row: 4; justify-self: start; }
+  .infra-cat-row > span:nth-child(6) { grid-column: 1; grid-row: 4; justify-self: end; }
+  .infra-cat-row .row-edit { grid-column: 2; grid-row: 1; }
+  .infra-cat-row .row-delete { grid-column: 3; grid-row: 1; }
 }

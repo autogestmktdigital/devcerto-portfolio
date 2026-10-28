@@ -11,7 +11,10 @@ interface Props {
 }
 
 export default function DashboardPage({ systems, infras, clients, credentials, onNavigate }: Props) {
-  const totalMonthly = useMemo(() => infras.reduce((total, infra) => total + infra.value, 0), [infras])
+  const totalMonthly = useMemo(
+    () => infras.filter((infra) => infra.billingType === 'Mensal').reduce((total, infra) => total + infra.value, 0),
+    [infras],
+  )
 
   const statusCounts = useMemo(
     () => ({
@@ -26,6 +29,7 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
   const spendBySystem = useMemo(() => {
     const totals = new Map<number, number>()
     for (const infra of infras) {
+      if (infra.systemId === null) continue
       totals.set(infra.systemId, (totals.get(infra.systemId) ?? 0) + infra.value)
     }
     return [...totals.entries()]
@@ -39,7 +43,10 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
   const todayDay = new Date().getDate()
   const upcoming = useMemo(() => {
     const daysUntil = (dueDay: number) => (dueDay - todayDay + 31) % 31
-    return [...infras].sort((a, b) => daysUntil(a.dueDay) - daysUntil(b.dueDay)).slice(0, 6)
+    return [...infras]
+      .filter((infra) => infra.billingType === 'Mensal' && infra.dueDay !== null)
+      .sort((a, b) => daysUntil(a.dueDay as number) - daysUntil(b.dueDay as number))
+      .slice(0, 6)
   }, [infras, todayDay])
 
   return (
@@ -128,7 +135,7 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
               {upcoming.map((infra) => (
                 <div className="dash-due-row" key={infra.id}>
                   <span className="mono">dia {String(infra.dueDay).padStart(2, '0')}</span>
-                  <span>{infra.platform} · {systemName(infra.systemId)}</span>
+                  <span>{infra.platform}{infra.systemId !== null ? ` · ${systemName(infra.systemId)}` : ''}</span>
                   <span className="mono">{formatCurrency(infra.value)}</span>
                 </div>
               ))}

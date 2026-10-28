@@ -150,7 +150,7 @@ app.use('/api', async (request, response, next) => {
 app.get('/api/data', async (_request, response) => {
   const [systemsResult, infrasResult, clientsResult, clientSystemsResult, credentialsResult] = await Promise.all([
     pool.query('SELECT id, name, description, status FROM systems ORDER BY id'),
-    pool.query('SELECT id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value FROM infrastructure ORDER BY id'),
+    pool.query('SELECT id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date AS "paidDate" FROM infrastructure ORDER BY id'),
     pool.query('SELECT id, name, since FROM clients ORDER BY id'),
     pool.query('SELECT client_id AS "clientId", system_id AS "systemId" FROM client_systems ORDER BY client_id, system_id'),
     pool.query('SELECT id, platform, login, password_ciphertext FROM credentials ORDER BY id'),
@@ -168,14 +168,14 @@ app.get('/api/data', async (_request, response) => {
 
 app.post('/api/systems', async (request, response) => {
   const { name, description, status } = request.body ?? {}
-  if (!validText(name) || !validText(description) || !['Lançado', 'Em dev', 'Desativado'].includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
+  if (!validText(name) || !validText(description) || !['Lançado', 'Em dev', 'Desativado', 'Prancheta'].includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
   const result = await pool.query('INSERT INTO systems (name, description, status) VALUES ($1, $2, $3) RETURNING id, name, description, status', [name, description, status])
   return response.status(201).json(result.rows[0])
 })
 
 app.put('/api/systems/:id', async (request, response) => {
   const { name, description, status } = request.body ?? {}
-  if (!validText(name) || !validText(description) || !['Lançado', 'Em dev', 'Desativado'].includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
+  if (!validText(name) || !validText(description) || !['Lançado', 'Em dev', 'Desativado', 'Prancheta'].includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
   const result = await pool.query('UPDATE systems SET name = $1, description = $2, status = $3 WHERE id = $4 RETURNING id, name, description, status', [name, description, status, positiveId(request.params.id)])
   return result.rowCount ? response.json(result.rows[0]) : response.status(404).json({ error: 'Sistema não encontrado' })
 })
@@ -188,14 +188,14 @@ app.delete('/api/systems/:id', async (request, response) => {
 app.post('/api/infras', async (request, response) => {
   const parsed = parseInfra(request.body)
   if (!parsed) return response.status(400).json({ error: 'Dados da infraestrutura inválidos' })
-  const result = await pool.query('INSERT INTO infrastructure (system_id, platform, usage, due_day, payer, value) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value', parsed)
+  const result = await pool.query('INSERT INTO infrastructure (system_id, platform, usage, due_day, payer, value, billing_type, paid_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date::text AS "paidDate"', parsed)
   return response.status(201).json(result.rows[0])
 })
 
 app.put('/api/infras/:id', async (request, response) => {
   const parsed = parseInfra(request.body)
   if (!parsed) return response.status(400).json({ error: 'Dados da infraestrutura inválidos' })
-  const result = await pool.query('UPDATE infrastructure SET system_id = $1, platform = $2, usage = $3, due_day = $4, payer = $5, value = $6 WHERE id = $7 RETURNING id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value', [...parsed, positiveId(request.params.id)])
+  const result = await pool.query('UPDATE infrastructure SET system_id = $1, platform = $2, usage = $3, due_day = $4, payer = $5, value = $6, billing_type = $7, paid_date = $8 WHERE id = $9 RETURNING id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date::text AS "paidDate"', [...parsed, positiveId(request.params.id)])
   return result.rowCount ? response.json(result.rows[0]) : response.status(404).json({ error: 'Infraestrutura não encontrada' })
 })
 
@@ -271,12 +271,27 @@ function validSystemIds(ids) {
   return Array.isArray(ids) && ids.length <= 100 && ids.every((id) => Number.isSafeInteger(id) && id > 0) && new Set(ids).size === ids.length
 }
 
+const BILLING_TYPES = ['Mensal', 'Grátis', 'Esporádico']
+
 function parseInfra(body) {
-  const { systemId, platform, usage, dueDay, payer, value } = body ?? {}
-  if (!Number.isSafeInteger(systemId) || systemId < 1 || !validText(platform) || !validText(usage)) return null
-  if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31 || typeof payer !== 'string' || payer.length > 500) return null
+  const { systemId, platform, usage, dueDay, payer, value, billingType, paidDate } = body ?? {}
+  if (!(systemId === null || (Number.isSafeInteger(systemId) && systemId > 0)) || !validText(platform) || !validText(usage)) return null
+  if (!BILLING_TYPES.includes(billingType)) return null
+  const normalizedDueDay = billingType === 'Mensal' ? dueDay : null
+  if (billingType === 'Mensal' && (!Number.isInteger(normalizedDueDay) || normalizedDueDay < 1 || normalizedDueDay > 31)) return null
+  if (typeof payer !== 'string' || payer.length > 500) return null
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1_000_000_000) return null
-  return [systemId, platform, usage, dueDay, payer, value]
+  if (billingType === 'Grátis' && value !== 0) return null
+  if (billingType === 'Esporádico' && value <= 0) return null
+  const normalizedPaidDate = billingType === 'Esporádico' && typeof paidDate === 'string' && paidDate ? paidDate : null
+  if (normalizedPaidDate !== null && !isValidDateString(normalizedPaidDate)) return null
+  return [systemId, platform, usage, normalizedDueDay, payer, value, billingType, normalizedPaidDate]
+}
+
+function isValidDateString(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value)
 }
 
 async function withTransaction(operation) {
