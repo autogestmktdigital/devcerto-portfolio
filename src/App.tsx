@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react'
 import type { ClientItem, CredentialItem, InfraItem, SystemItem } from '@/types'
 import { api } from '@/api'
 import type { AppData } from '@/api'
+import DashboardPage from '@/pages/DashboardPage'
 import SistemasPage from '@/pages/SistemasPage'
 import InfraPage from '@/pages/InfraPage'
 import ClientesPage from '@/pages/ClientesPage'
 import CredenciaisPage from '@/pages/CredenciaisPage'
 import LoginPage from '@/pages/LoginPage'
 
-type Page = 'Sistemas' | 'Infraestrutura' | 'Clientes' | 'Acessos'
+type Page = 'Dashboard' | 'Sistemas' | 'Infraestrutura' | 'Clientes' | 'Acessos'
+
+type ListPage = Exclude<Page, 'Dashboard'>
 
 const navItems: { label: Page | 'Financeiro'; icon: string; soon?: boolean }[] = [
+  { label: 'Dashboard', icon: '▦' },
   { label: 'Sistemas', icon: '⌁' },
   { label: 'Infraestrutura', icon: '▤' },
   { label: 'Clientes', icon: '♧' },
@@ -18,24 +22,24 @@ const navItems: { label: Page | 'Financeiro'; icon: string; soon?: boolean }[] =
   { label: 'Financeiro', icon: '$', soon: true },
 ]
 
-const newLabels: Record<Page, string> = {
-  Sistemas: 'NOVO SISTEMA',
-  Infraestrutura: 'NOVA INFRA',
-  Clientes: 'NOVO CLIENTE',
-  Acessos: 'NOVO ACESSO',
+const newLabels: Record<ListPage, string> = {
+  Sistemas: 'Novo sistema',
+  Infraestrutura: 'Nova infra',
+  Clientes: 'Novo cliente',
+  Acessos: 'Novo acesso',
 }
 
-const searchPlaceholders: Record<Page, string> = {
-  Sistemas: 'BUSCAR SISTEMAS...',
-  Infraestrutura: 'BUSCAR INFRAESTRUTURAS...',
-  Clientes: 'BUSCAR CLIENTES...',
-  Acessos: 'BUSCAR ACESSOS...',
+const searchPlaceholders: Record<ListPage, string> = {
+  Sistemas: 'Buscar sistemas...',
+  Infraestrutura: 'Buscar infraestruturas...',
+  Clientes: 'Buscar clientes...',
+  Acessos: 'Buscar acessos...',
 }
 
 export default function App() {
-  const [page, setPage] = useState<Page>('Sistemas')
+  const [page, setPage] = useState<Page>('Dashboard')
   const [query, setQuery] = useState('')
-  const [modalPage, setModalPage] = useState<Page | null>(null)
+  const [modalPage, setModalPage] = useState<ListPage | null>(null)
   const [authenticated, setAuthenticated] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -92,7 +96,7 @@ export default function App() {
       setInfras([])
       setClients([])
       setCredentials([])
-      setPage('Sistemas')
+      setPage('Dashboard')
       setQuery('')
     }
   }
@@ -204,11 +208,15 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">◇</span><span>DEVCERTO</span></div>
-        <label className="search">
-          <span>⌕</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholders[page]} />
-        </label>
-        <button className="primary-button" onClick={() => setModalPage(page)}><span>＋</span> {newLabels[page]}</button>
+        {page !== 'Dashboard' && (
+          <>
+            <label className="search">
+              <span>⌕</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholders[page]} />
+            </label>
+            <button className="primary-button" onClick={() => setModalPage(page)}><span>＋</span> {newLabels[page]}</button>
+          </>
+        )}
       </header>
 
       <div className="workspace">
@@ -228,11 +236,12 @@ export default function App() {
           </nav>
           <div className="sidebar-bottom">
             {appError && <p className="app-error" role="alert">{appError}</p>}
-            <button className="logout-button" onClick={() => void handleLogout()}>↪ &nbsp; SAIR DO SISTEMA</button>
+            <button className="logout-button" onClick={() => void handleLogout()}>↪ &nbsp; Sair do sistema</button>
             <button className="collapse" aria-label="Recolher menu">‹‹</button>
           </div>
         </aside>
 
+        {page === 'Dashboard' && <DashboardPage systems={systems} infras={infras} clients={clients} credentials={credentials} onNavigate={(target) => setPage(target)} />}
         {page === 'Sistemas' && <SistemasPage systems={systems} infras={infras} query={query} modalOpen={modalPage === 'Sistemas'} onCloseModal={closeModal} onAdd={addSystem} onUpdate={updateSystem} onRemove={removeSystem} />}
         {page === 'Infraestrutura' && <InfraPage systems={systems} infras={infras} query={query} modalOpen={modalPage === 'Infraestrutura'} onCloseModal={closeModal} onAdd={addInfra} onUpdate={updateInfra} onRemove={removeInfra} />}
         {page === 'Clientes' && <ClientesPage clients={clients} systems={systems} query={query} modalOpen={modalPage === 'Clientes'} onCloseModal={closeModal} onAdd={addClient} onUpdate={updateClient} onRemove={removeClient} />}

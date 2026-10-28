@@ -20,16 +20,16 @@ export default function LoginPage({ onLogin, error, loading }: Props) {
     <main className="login-screen">
       <form className="login-card" onSubmit={submit}>
         <div className="brand login-brand"><span className="brand-mark">◇</span><span>DEVCERTO</span></div>
-        <p className="login-eyebrow">PORTFÓLIO · ACESSO RESTRITO</p>
+        <p className="login-eyebrow">Portfólio · Acesso restrito</p>
         <h1>Entrar no sistema</h1>
-        <label>SENHA ADMINISTRATIVA
+        <label>Senha administrativa
           <div className="login-password">
             <input autoFocus type={visible ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Digite sua senha" />
-            <button type="button" onClick={() => setVisible((value) => !value)}>{visible ? 'OCULTAR' : 'MOSTRAR'}</button>
+            <button type="button" onClick={() => setVisible((value) => !value)}>{visible ? 'Ocultar' : 'Mostrar'}</button>
           </div>
         </label>
         {error && <p className="login-error" role="alert">{error}</p>}
-        <button className="primary-button submit" disabled={loading || !password} type="submit">{loading ? 'VALIDANDO...' : 'ENTRAR ↗'}</button>
+        <button className="primary-button submit" disabled={loading || !password} type="submit">{loading ? 'Validando...' : 'Entrar'}</button>
         <p className="login-note">O acesso é protegido e monitorado.</p>
       </form>
     </main>
