@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { ClientItem, SystemItem } from '@/types'
+import { statusClass } from '@/utils'
 
 interface Props {
   clients: ClientItem[]
@@ -74,7 +75,7 @@ export default function ClientesPage({ clients, systems, query, modalOpen, onClo
               {client.systemIds.map((id) => {
                 const system = systems.find((item) => item.id === id)
                 if (!system) return null
-                return <span key={id} className={`chip ${system.status === 'Em dev' ? 'dev' : system.status === 'Desativado' ? 'off' : ''}`}>{system.name}</span>
+                return <span key={id} className={`chip ${statusClass(system.status) === 'on' ? '' : statusClass(system.status)}`}>{system.name}</span>
               })}
             </div>
             <span className="since mono">{client.since}</span>

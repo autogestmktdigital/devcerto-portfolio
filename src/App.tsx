@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ClientItem, CredentialItem, InfraItem, SystemItem } from '@/types'
+import type { ClientItem, CredentialItem, InfraItem, SystemFormPayload, SystemItem } from '@/types'
 import { api } from '@/api'
 import type { AppData } from '@/api'
 import DashboardPage from '@/pages/DashboardPage'
@@ -124,18 +124,40 @@ export default function App() {
     return true
   }
 
-  async function updateSystem(system: SystemItem): Promise<boolean> {
-    const result = await perform(() => api.update<SystemItem>('systems', system.id, system))
+  async function updateSystem(payload: SystemFormPayload): Promise<boolean> {
+    if (typeof payload.id !== 'number') return false
+    const { infraIds, clientIds, ...system } = payload
+    const result = await perform(() => api.update<SystemItem>('systems', payload.id as number, system))
     if (!result) return false
     setSystems((current) => current.map((item) => (item.id === result.id ? result : item)))
+    await applySystemRelations(result.id, infraIds, clientIds)
     return true
   }
 
-  async function addSystem(system: Omit<SystemItem, 'id'>): Promise<boolean> {
+  async function addSystem(payload: SystemFormPayload): Promise<boolean> {
+    const { infraIds, clientIds, ...system } = payload
     const result = await perform(() => api.create<SystemItem>('systems', system))
     if (!result) return false
     setSystems((current) => [...current, result])
+    await applySystemRelations(result.id, infraIds, clientIds)
     return true
+  }
+
+  async function applySystemRelations(systemId: number, infraIds: number[], clientIds: number[]) {
+    for (const infra of infras) {
+      if (infraIds.includes(infra.id) && infra.systemId !== systemId) {
+        await updateInfra({ ...infra, systemId })
+      }
+    }
+    for (const client of clients) {
+      const linked = client.systemIds.includes(systemId)
+      const selected = clientIds.includes(client.id)
+      if (linked && !selected) {
+        await updateClient({ ...client, systemIds: client.systemIds.filter((id) => id !== systemId) })
+      } else if (!linked && selected) {
+        await updateClient({ ...client, systemIds: [...client.systemIds, systemId] })
+      }
+    }
   }
 
   async function updateInfra(infra: InfraItem): Promise<boolean> {

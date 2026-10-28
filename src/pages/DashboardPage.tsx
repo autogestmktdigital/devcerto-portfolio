@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ClientItem, CredentialItem, InfraItem, SystemItem } from '@/types'
-import { formatCurrency } from '@/utils'
+import { formatCurrency, statusClass } from '@/utils'
 
 interface Props {
   systems: SystemItem[]
@@ -18,6 +18,7 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
       launched: systems.filter((system) => system.status === 'Lançado').length,
       dev: systems.filter((system) => system.status === 'Em dev').length,
       off: systems.filter((system) => system.status === 'Desativado').length,
+      planning: systems.filter((system) => system.status === 'Prancheta').length,
     }),
     [systems],
   )
@@ -53,7 +54,7 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
           <span className="stat-label">Sistemas</span>
           <strong className="stat-value">{systems.length}</strong>
           <span className="stat-sub">
-            {statusCounts.launched} lançados · {statusCounts.dev} em dev
+            {statusCounts.launched} lançados · {statusCounts.dev} em dev{statusCounts.planning > 0 ? ` · ${statusCounts.planning} em prancheta` : ''}
             {statusCounts.off > 0 ? ` · ${statusCounts.off} desativados` : ''}
           </span>
         </button>
@@ -109,7 +110,7 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
               {systems.map((system) => (
                 <div className="dash-status-row" key={system.id}>
                   <span>{system.name}</span>
-                  <span className={`status ${system.status === 'Em dev' ? 'dev' : system.status === 'Desativado' ? 'off' : 'on'}`}>
+                  <span className={`status ${statusClass(system.status)}`}>
                     {system.status}
                   </span>
                 </div>

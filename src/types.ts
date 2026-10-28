@@ -1,10 +1,16 @@
-export type SystemStatus = 'Lançado' | 'Em dev' | 'Desativado'
+export type SystemStatus = 'Lançado' | 'Em dev' | 'Desativado' | 'Prancheta'
 
 export interface SystemItem {
   id: number
   name: string
   description: string
   status: SystemStatus
+}
+
+export interface SystemFormPayload extends Omit<SystemItem, 'id'> {
+  id?: number
+  infraIds: number[]
+  clientIds: number[]
 }
 
 export interface InfraItem {

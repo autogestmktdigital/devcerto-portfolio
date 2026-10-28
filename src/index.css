@@ -377,6 +377,28 @@ button:disabled { cursor: default; }
 }
 .status.dev { border-color: rgba(0, 217, 245, 0.4); background: rgba(0, 217, 245, 0.08); color: var(--cyan); }
 .status.off { border-color: var(--line-strong); background: transparent; color: var(--muted); }
+.status.plan { border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08); color: #fbbf24; }
+
+/* Picker recolhível nos modais */
+.picker-toggle {
+  width: 100%;
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--ice);
+  font: 500 14px var(--font-body);
+  text-align: left;
+  transition: border-color 0.2s;
+}
+.picker-toggle:hover { border-color: rgba(0, 217, 245, 0.4); }
+.picker-toggle .chevron { color: var(--muted); font-size: 13px; transition: transform 0.2s; }
+.picker-toggle .chevron.open { transform: rotate(90deg); color: var(--cyan); }
 
 /* Infraestrutura — master-detail */
 .infra-master-head { grid-template-columns: 40px 1fr auto; }
@@ -468,6 +490,7 @@ button:disabled { cursor: default; }
 }
 .chip.dev { border-color: rgba(0, 217, 245, 0.4); color: var(--cyan); }
 .chip.off { border-color: var(--line); color: var(--muted); }
+.chip.plan { border-color: rgba(251, 191, 36, 0.4); color: #fbbf24; }
 .since { font: 13px var(--font-mono); color: var(--muted); }
 
 /* Acessos (credenciais) */
@@ -561,21 +584,33 @@ button:disabled { cursor: default; }
 .submit { width: 100%; margin-top: 8px; }
 
 .systems-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
-.pick-chip {
+.pick-chip:has(input:checked) { border-color: rgba(0, 217, 245, 0.55); color: var(--cyan); }
+.modal .pick-chip, .form-label .pick-chip {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0;
   padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--panel-2);
   color: var(--ice);
   font: 500 13px var(--font-body);
+  letter-spacing: 0;
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s;
 }
-.pick-chip:has(input:checked) { border-color: rgba(0, 217, 245, 0.55); color: var(--cyan); }
-.pick-chip input { width: auto; margin: 0; accent-color: var(--cyan); }
+.modal .pick-chip:hover, .form-label .pick-chip:hover { border-color: rgba(0, 217, 245, 0.4); }
+.modal .pick-chip input, .form-label .pick-chip input {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--cyan);
+  cursor: pointer;
+}
 
 /* ---------- Login ---------- */
 .login-screen {

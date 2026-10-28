@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { ClientItem, InfraItem, SystemItem, SystemStatus } from '@/types'
-import { formatCurrency } from '@/utils'
+import type { ClientItem, InfraItem, SystemFormPayload, SystemItem, SystemStatus } from '@/types'
+import { formatCurrency, statusClass } from '@/utils'
 
 interface Props {
   systems: SystemItem[]
@@ -10,8 +10,8 @@ interface Props {
   query: string
   modalOpen: boolean
   onCloseModal: () => void
-  onAdd: (system: Omit<SystemItem, 'id'>) => Promise<boolean>
-  onUpdate: (system: SystemItem) => Promise<boolean>
+  onAdd: (payload: SystemFormPayload) => Promise<boolean>
+  onUpdate: (payload: SystemFormPayload) => Promise<boolean>
   onRemove: (systemId: number) => Promise<boolean>
 }
 
@@ -23,8 +23,10 @@ function displayCase(text: string) {
 
 export default function SistemasPage({ systems, infras, clients, query, modalOpen, onCloseModal, onAdd, onUpdate, onRemove }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', status: 'Em dev' as SystemStatus })
+  const [form, setForm] = useState({ name: '', description: '', status: 'Em dev' as SystemStatus, infraIds: [] as number[], clientIds: [] as number[] })
   const [editing, setEditing] = useState<SystemItem | null>(null)
+  const [infraOpen, setInfraOpen] = useState(false)
+  const [clientsOpen, setClientsOpen] = useState(false)
 
   useEffect(() => {
     if (modalOpen) setEditing(null)
@@ -32,12 +34,20 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
 
   const close = () => {
     setEditing(null)
+    setInfraOpen(false)
+    setClientsOpen(false)
     onCloseModal()
   }
 
   function startEdit(system: SystemItem) {
     setEditing(system)
-    setForm({ name: system.name, description: system.description, status: system.status })
+    setForm({
+      name: system.name,
+      description: system.description,
+      status: system.status,
+      infraIds: infras.filter((infra) => infra.systemId === system.id).map((infra) => infra.id),
+      clientIds: clients.filter((client) => client.systemIds.includes(system.id)).map((client) => client.id),
+    })
   }
 
   const filteredSystems = useMemo(() => {
@@ -65,10 +75,19 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!form.name.trim() || !form.description.trim()) return
-    const payload = { name: form.name.trim(), description: form.description.trim(), status: form.status }
-    const saved = editing ? await onUpdate({ ...editing, ...payload }) : await onAdd(payload)
+    const payload: SystemFormPayload = {
+      ...(editing ? { id: editing.id } : {}),
+      name: form.name.trim(),
+      description: form.description.trim(),
+      status: form.status,
+      infraIds: form.infraIds,
+      clientIds: form.clientIds,
+    }
+    const saved = editing ? await onUpdate(payload) : await onAdd(payload)
     if (!saved) return
-    setForm({ name: '', description: '', status: 'Em dev' })
+    setForm({ name: '', description: '', status: 'Em dev', infraIds: [], clientIds: [] })
+    setInfraOpen(false)
+    setClientsOpen(false)
     close()
   }
 
@@ -97,7 +116,7 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
                 <span className="system-index">{String(index + 1).padStart(2, '0')}</span>
                 <strong>{system.name}</strong>
                 <p>{displayCase(system.description)}</p>
-                <span className={`status ${system.status === 'Em dev' ? 'dev' : system.status === 'Desativado' ? 'off' : 'on'}`}>{system.status}</span>
+                <span className={`status ${statusClass(system.status)}`}>{system.status}</span>
                 <div className="chips">
                   {systemClients.map((client) => (
                     <span key={client.id} className="chip">{client.name}</span>
@@ -159,7 +178,62 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
             <div className="modal-heading"><span>{editing ? 'Editar sistema' : 'Novo sistema'}</span><button type="button" onClick={close}>×</button></div>
             <label>Nome do sistema<input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Ex.: Portal do Cliente" /></label>
             <label>Descrição<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Descreva o propósito do sistema" /></label>
-            <label>Status<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as SystemStatus })}><option>Lançado</option><option>Em dev</option><option>Desativado</option></select></label>
+            <label>Status<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as SystemStatus })}><option>Desativado</option><option>Em dev</option><option>Lançado</option><option>Prancheta</option></select></label>
+            <div className="form-label">Infraestrutura utilizada
+              <button type="button" className="picker-toggle" onClick={() => setInfraOpen((open) => !open)}>
+                <span>{form.infraIds.length > 0 ? `${form.infraIds.length} selecionada${form.infraIds.length > 1 ? 's' : ''}` : 'Nenhuma selecionada — clique para escolher'}</span>
+                <span className={`chevron ${infraOpen ? 'open' : ''}`}>▸</span>
+              </button>
+              {infraOpen && (
+                <div className="systems-picker">
+                  {infras.map((infra) => {
+                    const owner = systems.find((system) => system.id === infra.systemId)
+                    return (
+                      <label key={infra.id} className="pick-chip">
+                        <input
+                          type="checkbox"
+                          checked={form.infraIds.includes(infra.id)}
+                          onChange={() => setForm((current) => ({
+                            ...current,
+                            infraIds: current.infraIds.includes(infra.id)
+                              ? current.infraIds.filter((id) => id !== infra.id)
+                              : [...current.infraIds, infra.id],
+                          }))}
+                        />
+                        {infra.platform} · {infra.usage}{owner ? ` (${owner.name})` : ''}
+                      </label>
+                    )
+                  })}
+                  {infras.length === 0 && <span className="panel-empty">Nenhuma infraestrutura cadastrada ainda.</span>}
+                </div>
+              )}
+            </div>
+            <div className="form-label">Clientes que utilizam
+              <button type="button" className="picker-toggle" onClick={() => setClientsOpen((open) => !open)}>
+                <span>{form.clientIds.length > 0 ? `${form.clientIds.length} selecionado${form.clientIds.length > 1 ? 's' : ''}` : 'Nenhum selecionado — clique para escolher'}</span>
+                <span className={`chevron ${clientsOpen ? 'open' : ''}`}>▸</span>
+              </button>
+              {clientsOpen && (
+                <div className="systems-picker">
+                  {clients.map((client) => (
+                    <label key={client.id} className="pick-chip">
+                      <input
+                        type="checkbox"
+                        checked={form.clientIds.includes(client.id)}
+                        onChange={() => setForm((current) => ({
+                          ...current,
+                          clientIds: current.clientIds.includes(client.id)
+                            ? current.clientIds.filter((id) => id !== client.id)
+                            : [...current.clientIds, client.id],
+                        }))}
+                      />
+                      {client.name}
+                    </label>
+                  ))}
+                  {clients.length === 0 && <span className="panel-empty">Nenhum cliente cadastrado ainda.</span>}
+                </div>
+              )}
+            </div>
             <button className="primary-button submit" type="submit">{editing ? 'Salvar alterações' : 'Salvar sistema'}</button>
           </form>
         </div>
