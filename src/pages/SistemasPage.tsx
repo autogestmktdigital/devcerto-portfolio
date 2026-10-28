@@ -45,7 +45,7 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
       name: system.name,
       description: system.description,
       status: system.status,
-      infraIds: infras.filter((infra) => infra.systemId === system.id).map((infra) => infra.id),
+      infraIds: system.infraIds,
       clientIds: clients.filter((client) => client.systemIds.includes(system.id)).map((client) => client.id),
     })
   }
@@ -105,7 +105,7 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
       <div className="system-list">
         {filteredSystems.map((system, index) => {
           const expanded = expandedId === system.id
-          const systemInfras = infras.filter((infra) => infra.systemId === system.id)
+          const systemInfras = infras.filter((infra) => system.infraIds.includes(infra.id))
           const systemClients = clientsBySystem.get(system.id) ?? []
           return (
             <div key={system.id} className={`infra-system ${expanded ? 'expanded' : ''}`}>
@@ -141,7 +141,7 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
                   title="Excluir sistema"
                   onClick={(event) => {
                     event.stopPropagation()
-                    if (window.confirm(`Excluir "${system.name}"?\n\nAs infraestruturas vinculadas serão removidas e os clientes deixarão de referenciar este sistema.`)) {
+                    if (window.confirm(`Excluir "${system.name}"?\n\nOs vínculos com infraestruturas e clientes serão removidos; os cadastros em si permanecem.`)) {
                       onRemove(system.id)
                     }
                   }}
@@ -186,24 +186,21 @@ export default function SistemasPage({ systems, infras, clients, query, modalOpe
               </button>
               {infraOpen && (
                 <div className="systems-picker">
-                  {infras.map((infra) => {
-                    const owner = systems.find((system) => system.id === infra.systemId)
-                    return (
-                      <label key={infra.id} className="pick-chip">
-                        <input
-                          type="checkbox"
-                          checked={form.infraIds.includes(infra.id)}
-                          onChange={() => setForm((current) => ({
-                            ...current,
-                            infraIds: current.infraIds.includes(infra.id)
-                              ? current.infraIds.filter((id) => id !== infra.id)
-                              : [...current.infraIds, infra.id],
-                          }))}
-                        />
-                        {infra.platform} · {infra.usage}{owner ? ` (${owner.name})` : ''}
-                      </label>
-                    )
-                  })}
+                  {infras.map((infra) => (
+                    <label key={infra.id} className="pick-chip">
+                      <input
+                        type="checkbox"
+                        checked={form.infraIds.includes(infra.id)}
+                        onChange={() => setForm((current) => ({
+                          ...current,
+                          infraIds: current.infraIds.includes(infra.id)
+                            ? current.infraIds.filter((id) => id !== infra.id)
+                            : [...current.infraIds, infra.id],
+                        }))}
+                      />
+                      {infra.platform} · {infra.usage}
+                    </label>
+                  ))}
                   {infras.length === 0 && <span className="panel-empty">Nenhuma infraestrutura cadastrada ainda.</span>}
                 </div>
               )}

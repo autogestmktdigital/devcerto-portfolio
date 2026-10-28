@@ -119,48 +119,35 @@ export default function App() {
     const done = await perform(() => api.remove('systems', id))
     if (done === null) return false
     setSystems((current) => current.filter((system) => system.id !== id))
-    setInfras((current) => current.filter((infra) => infra.systemId !== id))
     setClients((current) => current.map((client) => ({ ...client, systemIds: client.systemIds.filter((systemId) => systemId !== id) })))
     return true
   }
 
   async function updateSystem(payload: SystemFormPayload): Promise<boolean> {
-    if (typeof payload.id !== 'number') return false
-    const { infraIds, clientIds, ...system } = payload
-    const result = await perform(() => api.update<SystemItem>('systems', payload.id as number, system))
+    const { id } = payload
+    if (typeof id !== 'number') return false
+    const result = await perform(() => api.update<SystemItem>('systems', id, payload))
     if (!result) return false
     setSystems((current) => current.map((item) => (item.id === result.id ? result : item)))
-    await applySystemRelations(result.id, infraIds, clientIds)
+    syncClientLinks(result.id, payload.clientIds)
     return true
   }
 
   async function addSystem(payload: SystemFormPayload): Promise<boolean> {
-    const { infraIds, clientIds, ...system } = payload
-    const result = await perform(() => api.create<SystemItem>('systems', system))
+    const result = await perform(() => api.create<SystemItem>('systems', payload))
     if (!result) return false
     setSystems((current) => [...current, result])
-    await applySystemRelations(result.id, infraIds, clientIds)
+    syncClientLinks(result.id, payload.clientIds)
     return true
   }
 
-  async function applySystemRelations(systemId: number, infraIds: number[], clientIds: number[]) {
-    for (const infra of infras) {
-      const selected = infraIds.includes(infra.id)
-      if (selected && infra.systemId !== systemId) {
-        await updateInfra({ ...infra, systemId })
-      } else if (!selected && infra.systemId === systemId) {
-        await updateInfra({ ...infra, systemId: null })
-      }
-    }
-    for (const client of clients) {
-      const linked = client.systemIds.includes(systemId)
-      const selected = clientIds.includes(client.id)
-      if (linked && !selected) {
-        await updateClient({ ...client, systemIds: client.systemIds.filter((id) => id !== systemId) })
-      } else if (!linked && selected) {
-        await updateClient({ ...client, systemIds: [...client.systemIds, systemId] })
-      }
-    }
+  function syncClientLinks(systemId: number, clientIds: number[]) {
+    setClients((current) => current.map((client) => ({
+      ...client,
+      systemIds: clientIds.includes(client.id)
+        ? [...new Set([...client.systemIds, systemId])]
+        : client.systemIds.filter((id) => id !== systemId),
+    })))
   }
 
   async function updateInfra(infra: InfraItem): Promise<boolean> {
@@ -171,7 +158,7 @@ export default function App() {
   }
 
   async function addInfra(payload: InfraFormPayload): Promise<boolean> {
-    const result = await perform(() => api.create<InfraItem>('infras', { ...payload, systemId: null }))
+    const result = await perform(() => api.create<InfraItem>('infras', payload))
     if (!result) return false
     setInfras((current) => [...current, result])
     return true

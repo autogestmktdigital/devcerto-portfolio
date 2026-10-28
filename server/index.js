@@ -148,13 +148,21 @@ app.use('/api', async (request, response, next) => {
 })
 
 app.get('/api/data', async (_request, response) => {
-  const [systemsResult, infrasResult, clientsResult, clientSystemsResult, credentialsResult] = await Promise.all([
+  const [systemsResult, infrasResult, systemInfraResult, clientsResult, clientSystemsResult, credentialsResult] = await Promise.all([
     pool.query('SELECT id, name, description, status FROM systems ORDER BY id'),
-    pool.query('SELECT id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date AS "paidDate" FROM infrastructure ORDER BY id'),
+    pool.query('SELECT id, platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date AS "paidDate" FROM infrastructure ORDER BY id'),
+    pool.query('SELECT system_id AS "systemId", infra_id AS "infraId" FROM system_infra ORDER BY system_id, infra_id'),
     pool.query('SELECT id, name, since FROM clients ORDER BY id'),
     pool.query('SELECT client_id AS "clientId", system_id AS "systemId" FROM client_systems ORDER BY client_id, system_id'),
     pool.query('SELECT id, platform, login, password_ciphertext FROM credentials ORDER BY id'),
   ])
+  const infraIdsBySystem = new Map()
+  for (const link of systemInfraResult.rows) {
+    const current = infraIdsBySystem.get(link.systemId) ?? []
+    current.push(link.infraId)
+    infraIdsBySystem.set(link.systemId, current)
+  }
+  const systems = systemsResult.rows.map((system) => ({ ...system, infraIds: infraIdsBySystem.get(system.id) ?? [] }))
   const clientIds = new Map()
   for (const link of clientSystemsResult.rows) {
     const current = clientIds.get(link.clientId) ?? []
@@ -163,21 +171,38 @@ app.get('/api/data', async (_request, response) => {
   }
   const clients = clientsResult.rows.map((client) => ({ ...client, systemIds: clientIds.get(client.id) ?? [] }))
   const credentials = credentialsResult.rows.map(({ password_ciphertext, ...credential }) => ({ ...credential, password: decryptPassword(password_ciphertext) }))
-  return response.json({ systems: systemsResult.rows, infras: infrasResult.rows, clients, credentials })
+  return response.json({ systems, infras: infrasResult.rows, clients, credentials })
 })
 
 app.post('/api/systems', async (request, response) => {
-  const { name, description, status } = request.body ?? {}
-  if (!validText(name) || !validText(description) || !['Lançado', 'Em dev', 'Desativado', 'Prancheta'].includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
-  const result = await pool.query('INSERT INTO systems (name, description, status) VALUES ($1, $2, $3) RETURNING id, name, description, status', [name, description, status])
-  return response.status(201).json(result.rows[0])
+  const { name, description, status, infraIds, clientIds } = request.body ?? {}
+  if (!validText(name) || !validText(description) || !SYSTEM_STATUSES.includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
+  if (!validIdList(infraIds) || !validIdList(clientIds)) return response.status(400).json({ error: 'Vínculos inválidos' })
+  const system = await withTransaction(async (clientPool) => {
+    const result = await clientPool.query('INSERT INTO systems (name, description, status) VALUES ($1, $2, $3) RETURNING id, name, description, status', [name, description, status])
+    const id = result.rows[0].id
+    for (const infraId of infraIds) await clientPool.query('INSERT INTO system_infra (system_id, infra_id) VALUES ($1, $2)', [id, infraId])
+    for (const clientId of clientIds) await clientPool.query('INSERT INTO client_systems (client_id, system_id) VALUES ($1, $2)', [clientId, id])
+    return { ...result.rows[0], infraIds, clientIds }
+  })
+  return response.status(201).json(system)
 })
 
 app.put('/api/systems/:id', async (request, response) => {
-  const { name, description, status } = request.body ?? {}
-  if (!validText(name) || !validText(description) || !['Lançado', 'Em dev', 'Desativado', 'Prancheta'].includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
-  const result = await pool.query('UPDATE systems SET name = $1, description = $2, status = $3 WHERE id = $4 RETURNING id, name, description, status', [name, description, status, positiveId(request.params.id)])
-  return result.rowCount ? response.json(result.rows[0]) : response.status(404).json({ error: 'Sistema não encontrado' })
+  const id = positiveId(request.params.id)
+  const { name, description, status, infraIds, clientIds } = request.body ?? {}
+  if (!validText(name) || !validText(description) || !SYSTEM_STATUSES.includes(status)) return response.status(400).json({ error: 'Dados do sistema inválidos' })
+  if (!validIdList(infraIds) || !validIdList(clientIds)) return response.status(400).json({ error: 'Vínculos inválidos' })
+  const system = await withTransaction(async (clientPool) => {
+    const result = await clientPool.query('UPDATE systems SET name = $1, description = $2, status = $3 WHERE id = $4 RETURNING id, name, description, status', [name, description, status, id])
+    if (!result.rowCount) return null
+    await clientPool.query('DELETE FROM system_infra WHERE system_id = $1', [id])
+    await clientPool.query('DELETE FROM client_systems WHERE system_id = $1', [id])
+    for (const infraId of infraIds) await clientPool.query('INSERT INTO system_infra (system_id, infra_id) VALUES ($1, $2)', [id, infraId])
+    for (const clientId of clientIds) await clientPool.query('INSERT INTO client_systems (client_id, system_id) VALUES ($1, $2)', [clientId, id])
+    return { ...result.rows[0], infraIds, clientIds }
+  })
+  return system ? response.json(system) : response.status(404).json({ error: 'Sistema não encontrado' })
 })
 
 app.delete('/api/systems/:id', async (request, response) => {
@@ -188,14 +213,14 @@ app.delete('/api/systems/:id', async (request, response) => {
 app.post('/api/infras', async (request, response) => {
   const parsed = parseInfra(request.body)
   if (!parsed) return response.status(400).json({ error: 'Dados da infraestrutura inválidos' })
-  const result = await pool.query('INSERT INTO infrastructure (system_id, platform, usage, due_day, payer, value, billing_type, paid_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date::text AS "paidDate"', parsed)
+  const result = await pool.query('INSERT INTO infrastructure (platform, usage, due_day, payer, value, billing_type, paid_date) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date AS "paidDate"', parsed)
   return response.status(201).json(result.rows[0])
 })
 
 app.put('/api/infras/:id', async (request, response) => {
   const parsed = parseInfra(request.body)
   if (!parsed) return response.status(400).json({ error: 'Dados da infraestrutura inválidos' })
-  const result = await pool.query('UPDATE infrastructure SET system_id = $1, platform = $2, usage = $3, due_day = $4, payer = $5, value = $6, billing_type = $7, paid_date = $8 WHERE id = $9 RETURNING id, system_id AS "systemId", platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date::text AS "paidDate"', [...parsed, positiveId(request.params.id)])
+  const result = await pool.query('UPDATE infrastructure SET platform = $1, usage = $2, due_day = $3, payer = $4, value = $5, billing_type = $6, paid_date = $7 WHERE id = $8 RETURNING id, platform, usage, due_day AS "dueDay", payer, value::float AS value, billing_type AS "billingType", paid_date AS "paidDate"', [...parsed, positiveId(request.params.id)])
   return result.rowCount ? response.json(result.rows[0]) : response.status(404).json({ error: 'Infraestrutura não encontrada' })
 })
 
@@ -206,7 +231,7 @@ app.delete('/api/infras/:id', async (request, response) => {
 
 app.post('/api/clients', async (request, response) => {
   const { name, since, systemIds } = request.body ?? {}
-  if (!validText(name) || !validYear(since) || !validSystemIds(systemIds)) return response.status(400).json({ error: 'Dados do cliente inválidos' })
+  if (!validText(name) || !validYear(since) || !validIdList(systemIds)) return response.status(400).json({ error: 'Dados do cliente inválidos' })
   const client = await withTransaction(async (clientPool) => {
     const result = await clientPool.query('INSERT INTO clients (name, since) VALUES ($1, $2) RETURNING id, name, since', [name, since])
     for (const systemId of systemIds) await clientPool.query('INSERT INTO client_systems (client_id, system_id) VALUES ($1, $2)', [result.rows[0].id, systemId])
@@ -218,7 +243,7 @@ app.post('/api/clients', async (request, response) => {
 app.put('/api/clients/:id', async (request, response) => {
   const id = positiveId(request.params.id)
   const { name, since, systemIds } = request.body ?? {}
-  if (!validText(name) || !validYear(since) || !validSystemIds(systemIds)) return response.status(400).json({ error: 'Dados do cliente inválidos' })
+  if (!validText(name) || !validYear(since) || !validIdList(systemIds)) return response.status(400).json({ error: 'Dados do cliente inválidos' })
   const client = await withTransaction(async (clientPool) => {
     const result = await clientPool.query('UPDATE clients SET name = $1, since = $2 WHERE id = $3 RETURNING id, name, since', [name, since, id])
     if (!result.rowCount) return null
@@ -267,15 +292,16 @@ function validYear(value) {
   return Number.isInteger(value) && value >= 1900 && value <= 2100
 }
 
-function validSystemIds(ids) {
+function validIdList(ids) {
   return Array.isArray(ids) && ids.length <= 100 && ids.every((id) => Number.isSafeInteger(id) && id > 0) && new Set(ids).size === ids.length
 }
 
 const BILLING_TYPES = ['Mensal', 'Grátis', 'Esporádico']
+const SYSTEM_STATUSES = ['Lançado', 'Em dev', 'Desativado', 'Prancheta']
 
 function parseInfra(body) {
-  const { systemId, platform, usage, dueDay, payer, value, billingType, paidDate } = body ?? {}
-  if (!(systemId === null || (Number.isSafeInteger(systemId) && systemId > 0)) || !validText(platform) || !validText(usage)) return null
+  const { platform, usage, dueDay, payer, value, billingType, paidDate } = body ?? {}
+  if (!validText(platform) || !validText(usage)) return null
   if (!BILLING_TYPES.includes(billingType)) return null
   const normalizedDueDay = billingType === 'Mensal' ? dueDay : null
   if (billingType === 'Mensal' && (!Number.isInteger(normalizedDueDay) || normalizedDueDay < 1 || normalizedDueDay > 31)) return null
@@ -285,7 +311,7 @@ function parseInfra(body) {
   if (billingType === 'Esporádico' && value <= 0) return null
   const normalizedPaidDate = billingType === 'Esporádico' && typeof paidDate === 'string' && paidDate ? paidDate : null
   if (normalizedPaidDate !== null && !isValidDateString(normalizedPaidDate)) return null
-  return [systemId, platform, usage, normalizedDueDay, payer, value, billingType, normalizedPaidDate]
+  return [platform, usage, normalizedDueDay, payer, value, billingType, normalizedPaidDate]
 }
 
 function isValidDateString(value) {
@@ -311,7 +337,7 @@ async function withTransaction(operation) {
 
 app.use((error, _request, response, _next) => {
   if (error?.type === 'entity.parse.failed') return response.status(400).json({ error: 'JSON inválido' })
-  if (error?.code === '23503') return response.status(400).json({ error: 'Sistema relacionado não encontrado' })
+  if (error?.code === '23503' || /foreign key/i.test(error?.message ?? '')) return response.status(400).json({ error: 'Registro relacionado não encontrado' })
   if (error?.code === '23505') return response.status(409).json({ error: 'Registro duplicado' })
   console.error('Erro interno da API', error?.message ?? 'erro desconhecido')
   return response.status(500).json({ error: 'Erro interno do servidor' })

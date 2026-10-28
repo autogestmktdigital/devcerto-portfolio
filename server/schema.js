@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS systems (
 );
 CREATE TABLE IF NOT EXISTS infrastructure (
   id SERIAL PRIMARY KEY,
-  system_id INTEGER REFERENCES systems(id) ON DELETE CASCADE,
   platform TEXT NOT NULL,
   usage TEXT NOT NULL,
   billing_type TEXT NOT NULL DEFAULT 'Mensal' CHECK (billing_type IN ('Mensal', 'Grátis', 'Esporádico')),
@@ -29,6 +28,11 @@ CREATE TABLE IF NOT EXISTS client_systems (
   system_id INTEGER NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
   PRIMARY KEY (client_id, system_id)
 );
+CREATE TABLE IF NOT EXISTS system_infra (
+  system_id INTEGER NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+  infra_id INTEGER NOT NULL REFERENCES infrastructure(id) ON DELETE CASCADE,
+  PRIMARY KEY (system_id, infra_id)
+);
 CREATE TABLE IF NOT EXISTS credentials (
   id SERIAL PRIMARY KEY,
   platform TEXT NOT NULL,
@@ -45,11 +49,9 @@ CREATE INDEX IF NOT EXISTS admin_sessions_expires_at_idx ON admin_sessions(expir
 `
 
 export const migrationSql = `
-ALTER TABLE infrastructure ALTER COLUMN system_id DROP NOT NULL;
 ALTER TABLE systems DROP CONSTRAINT IF EXISTS systems_status_check;
 ALTER TABLE systems ADD CONSTRAINT systems_status_check CHECK (status IN ('Lançado', 'Em dev', 'Desativado', 'Prancheta'));
 ALTER TABLE infrastructure ADD COLUMN IF NOT EXISTS billing_type TEXT NOT NULL DEFAULT 'Mensal';
-ALTER TABLE infrastructure ALTER COLUMN due_day DROP NOT NULL;
 ALTER TABLE infrastructure ADD COLUMN IF NOT EXISTS paid_date TEXT;
 `
 

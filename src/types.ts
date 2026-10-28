@@ -5,11 +5,11 @@ export interface SystemItem {
   name: string
   description: string
   status: SystemStatus
+  infraIds: number[]
 }
 
 export interface SystemFormPayload extends Omit<SystemItem, 'id'> {
   id?: number
-  infraIds: number[]
   clientIds: number[]
 }
 
@@ -17,7 +17,6 @@ export type BillingType = 'Mensal' | 'Grátis' | 'Esporádico'
 
 export interface InfraItem {
   id: number
-  systemId: number | null
   platform: string
   usage: string
   billingType: BillingType
@@ -27,7 +26,7 @@ export interface InfraItem {
   paidDate: string | null
 }
 
-export type InfraFormPayload = Omit<InfraItem, 'id' | 'systemId'>
+export type InfraFormPayload = Omit<InfraItem, 'id'>
 
 export interface ClientItem {
   id: number

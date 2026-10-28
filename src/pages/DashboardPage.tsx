@@ -27,18 +27,21 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
   )
 
   const spendBySystem = useMemo(() => {
-    const totals = new Map<number, number>()
-    for (const infra of infras) {
-      if (infra.systemId === null) continue
-      totals.set(infra.systemId, (totals.get(infra.systemId) ?? 0) + infra.value)
-    }
-    return [...totals.entries()]
-      .map(([id, value]) => ({ id, name: systems.find((system) => system.id === id)?.name ?? '—', value }))
+    return systems
+      .map((system) => ({
+        id: system.id,
+        name: system.name,
+        value: infras.filter((infra) => system.infraIds.includes(infra.id)).reduce((total, infra) => total + infra.value, 0),
+      }))
+      .filter((item) => item.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [infras, systems])
+  }, [systems, infras])
   const maxSpend = Math.max(1, ...spendBySystem.map((item) => item.value))
 
-  const systemName = (id: number) => systems.find((system) => system.id === id)?.name ?? '—'
+  const systemNamesByInfra = (infraId: number) => {
+    const names = systems.filter((system) => system.infraIds.includes(infraId)).map((system) => system.name)
+    return names.length > 0 ? ` · ${names.join(', ')}` : ''
+  }
 
   const todayDay = new Date().getDate()
   const upcoming = useMemo(() => {
@@ -135,7 +138,7 @@ export default function DashboardPage({ systems, infras, clients, credentials, o
               {upcoming.map((infra) => (
                 <div className="dash-due-row" key={infra.id}>
                   <span className="mono">dia {String(infra.dueDay).padStart(2, '0')}</span>
-                  <span>{infra.platform}{infra.systemId !== null ? ` · ${systemName(infra.systemId)}` : ''}</span>
+                  <span>{infra.platform}{systemNamesByInfra(infra.id)}</span>
                   <span className="mono">{formatCurrency(infra.value)}</span>
                 </div>
               ))}
